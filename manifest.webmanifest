@@ -1,0 +1,10 @@
+{
+  "name": "Texas Statutes Reference",
+  "short_name": "TX Statutes",
+  "description": "Study and quick reference for Texas criminal statutes and traffic code.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#14233c",
+  "theme_color": "#14233c",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

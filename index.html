@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#14233c">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="TX Statutes">
+  <title>Texas Statutes Reference</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <button class="icon-btn" id="back" aria-label="Back" hidden>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
+    <h1 id="title">TX Statutes</h1>
+    <button class="icon-btn" id="filter-btn" aria-label="Filter by punishment level">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+      <span class="badge" id="filter-count" hidden></span>
+    </button>
+  </header>
+
+  <div class="searchbar">
+    <input id="search" type="search" placeholder="Search offense, section, term, or case (e.g. DWI, 49.04)" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search">
+  </div>
+
+  <main tabindex="-1">
+    <div id="view"></div>
+    <!-- Shown at the bottom of each module's main page only. -->
+    <p class="page-footer" id="page-footer"></p>
+  </main>
+
+  <nav class="tabbar" aria-label="Main">
+    <a href="#/" data-tab="offenses"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="16" r="4.5"/><circle cx="18" cy="16" r="4.5"/><rect x="4" y="5.5" width="4" height="4" rx="1"/><rect x="16" y="5.5" width="4" height="4" rx="1"/><rect x="8.8" y="6.6" width="3.2" height="1.8" rx=".9"/><rect x="12" y="6.6" width="3.2" height="1.8" rx=".9"/></svg><span>Criminal<br>Offenses</span></a>
+    <a href="#/code" data-tab="code"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3zM5 17a3 3 0 0 1 3-3h11M9 8h6"/></svg><span>Criminal<br>Code</span></a>
+    <a href="#/cases" data-tab="cases"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M5 20h14M4 9l3-5 3 5a3 3 0 0 1-6 0zM14 9l3-5 3 5a3 3 0 0 1-6 0zM7 4h10"/></svg>Case Law</a>
+    <a href="#/study" data-tab="study"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6l8-3 8 3-8 3zM8 8v6c0 2 8 2 8 0V8"/></svg>Study</a>
+    <a href="#/saved" data-tab="saved"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-6-4-6 4z"/></svg>Saved</a>
+  </nav>
+
+  <div class="sheet-backdrop" id="sheet-backdrop" hidden></div>
+  <section class="sheet" id="filter-sheet" hidden aria-label="Punishment level filter">
+    <div class="sheet-head">
+      <h2>Filter by punishment</h2>
+      <button class="text-btn" id="filter-clear">Clear</button>
+    </div>
+    <div class="chips" id="filter-chips"></div>
+    <button class="primary-btn" id="filter-done">Done</button>
+  </section>
+
+  <!-- Start-up disclaimer popup: the About content, the warning, and the Terms of Use. Shown on
+       first launch and whenever the terms version changes. The app stays blocked until the user
+       checks the box at the bottom and taps "I Acknowledge". -->
+  <div class="modal-backdrop" id="disclaimer" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="disclaimer-title">
+      <h2 id="disclaimer-title">Disclaimer</h2>
+      <div class="warning"><strong>Read before using this app</strong><ul id="disclaimer-summary"></ul></div>
+      <div id="disclaimer-about"></div>
+      <div class="card"><details><summary>Terms of Use (tap to read)</summary><div class="terms-text" id="disclaimer-terms"></div></details></div>
+      <label class="check"><input type="checkbox" id="disclaimer-agree"> I have read this disclaimer and agree to the Terms of Use, including the release and waiver of claims, covenant not to sue, limitation of liability, and arbitration agreement. I understand this app is for study and reference only, is not legal advice, and may contain errors or be out of date.</label>
+      <button class="primary-btn" id="disclaimer-ok" disabled>I Acknowledge</button>
+      <p class="muted" id="disclaimer-hint">Check the box above to continue.</p>
+    </div>
+  </div>
+
+  <script src="js/terms.js"></script>
+  <script src="data/offenses.js"></script>
+  <script src="js/logic.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
