@@ -149,13 +149,14 @@
         .map(x => x.b);
     }
 
-    // Bills in a topic ('' for all): House bills, then Senate bills, then resolutions, by number.
+    // Bills in a topic ('' for all): newest session first, then House bills, Senate bills and
+    // resolutions, by number.
     function billsIn(topic) {
       return bills.filter(b => !topic || b.topics.includes(topic)).sort(billOrder);
     }
     function billOrder(a, b) {
       const kind = x => ['HB', 'SB', 'HJR', 'SJR'].indexOf(x.bill.split(' ')[0]);
-      return kind(a) - kind(b) || +a.bill.split(' ')[1] - +b.bill.split(' ')[1];
+      return a.sessionRank - b.sessionRank || kind(a) - kind(b) || +a.bill.split(' ')[1] - +b.bill.split(' ')[1];
     }
 
     // Bills that list an offense or provision as related.

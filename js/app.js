@@ -215,7 +215,7 @@
     setTitle('HB/SB', false);
     const topics = D.billTopics || [];
     view.innerHTML =
-      '<p class="muted" style="margin:4px 4px 12px">House (HB) and Senate (SB) bills from the 89th Texas Legislature (2025) that changed the laws officers enforce, each linked to the official bill on Texas Legislature Online. Summaries are simplified study notes, not legal advice; read the bill and follow your agency and prosecutor.</p>' +
+      '<p class="muted" style="margin:4px 4px 12px">House (HB) and Senate (SB) bills from the 88th and 89th Texas Legislatures (2023 and 2025) that changed the laws officers enforce, each linked to the official bill on Texas Legislature Online. Summaries are simplified study notes, not legal advice; read the bill and follow your agency and prosecutor.</p>' +
       '<div class="list">' +
       '<a class="row" href="#/bills/t/all"><div class="main"><div class="title">All bills</div></div><span class="count">' + store.billsIn('').length + '</span>' + CHEV + '</a>' +
       topics.map((t, i) => '<a class="row" href="#/bills/t/' + i + '"><div class="main"><div class="title">' + esc(t) + '</div></div>' +
@@ -227,8 +227,8 @@
     if (topic === undefined) return renderNotFound();
     setTitle(topic || 'All bills', true);
     const list = store.billsIn(topic);
-    // Grouped by session: the Regular Session first, then the called sessions.
-    const sessions = [...new Set(list.map(b => b.sessionName))].sort((x, y) => /Regular/.test(y) - /Regular/.test(x) || x.localeCompare(y));
+    // Grouped by session, newest Legislature first (the list is already in session order).
+    const sessions = [...new Set(list.map(b => b.sessionName))];
     view.innerHTML = sessions.map(name => '<div class="section-label">' + esc(name) + '</div><div class="list">' +
       list.filter(b => b.sessionName === name).map(billRow).join('') + '</div>').join('');
   }
@@ -282,7 +282,7 @@
       (o.tiers.length ? '<div class="card"><h3>Punishment</h3>' + tiers + '</div>' : '') +
       (o.notes ? '<div class="card notes"><h3>Notes</h3><p>' + esc(o.notes) + '</p></div>' : '') +
       (cases.length ? '<div class="section-label">Related case law</div><div class="list">' + cases.map(caseRow).join('') + '</div>' : '') +
-      (bills.length ? '<div class="section-label">Changed by (2025 bills)</div><div class="list">' + bills.map(billRow).join('') + '</div>' : '') +
+      (bills.length ? '<div class="section-label">Changed by (2023 and 2025 bills)</div><div class="list">' + bills.map(billRow).join('') + '</div>' : '') +
       (terms.length ? '<div class="card"><h3>Also searched as</h3><div class="terms">' + esc(terms.join(' · ')) + '</div></div>' : '') +
       '<div class="card"><details class="statute" id="statute"><summary>Full statute text</summary><div id="statute-body" class="muted">Loading…</div></details></div>' +
       '<div class="actions">' +
@@ -539,7 +539,7 @@
       '<div class="card"><h3>Privacy</h3><p>No account, no tracking, and no data leaves your phone. Saved items and settings are stored only on this device.</p></div>' +
       '<div class="card"><h3>Codes included</h3><p>' + D.tree.map(c => esc(c.name)).join(', ') + '.</p></div>' +
       '<div class="card"><h3>Case law</h3><p>' + (D.cases || []).length + ' decisions of the U.S. Supreme Court and the Texas Court of Criminal Appeals, linked to the Library of Congress, supremecourt.gov, and search.txcourts.gov.</p></div>' +
-      '<div class="card"><h3>House and Senate bills</h3><p>' + (D.bills || []).length + ' bills from the 89th Texas Legislature (2025) that changed laws officers enforce, linked to Texas Legislature Online (capitol.texas.gov).</p></div>';
+      '<div class="card"><h3>House and Senate bills</h3><p>' + (D.bills || []).length + ' bills from the 88th and 89th Texas Legislatures (2023 and 2025) that changed laws officers enforce, linked to Texas Legislature Online (capitol.texas.gov).</p></div>';
   }
 
   function renderAbout() {
