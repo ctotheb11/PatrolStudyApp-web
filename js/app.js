@@ -769,8 +769,17 @@
 
   // Offline support when served over http(s) (not when opened as a local file).
   // Skipped on localhost so code changes show up immediately while developing.
+  // Updates install themselves: the app checks for a new version each time it is opened or brought
+  // back to the screen, and reloads once when the new version takes over.
   if ('serviceWorker' in navigator && location.protocol.startsWith('http') && location.hostname !== 'localhost') {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
+    const hadVersion = !!navigator.serviceWorker.controller; // false on the very first visit
+    let reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (hadVersion && !reloaded) { reloaded = true; location.reload(); }
+    });
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(reg => {
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) reg.update().catch(() => {}); });
+    }).catch(() => {});
   }
 
   setLevels(state.levels);

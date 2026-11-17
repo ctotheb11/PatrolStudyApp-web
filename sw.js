@@ -1,13 +1,14 @@
 // Service worker: caches the whole app so it works with no signal. Bump VERSION when the data or
 // code changes so phones pick up the update.
-const VERSION = 'txs-v7';
+const VERSION = 'txs-v8';
 const FILES = [
   './', 'index.html', 'css/app.css', 'js/logic.js', 'js/terms.js', 'js/app.js',
   'data/offenses.js', 'data/statutes.js', 'manifest.webmanifest', 'icon.svg', 'icon-180.png',
 ];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
+  // cache: 'reload' skips the browser's own cache so a new version really downloads the new files.
+  e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES.map(f => new Request(f, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
