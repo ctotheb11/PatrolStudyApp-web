@@ -1,6 +1,6 @@
 // Service worker: caches the whole app so it works with no signal. Bump VERSION when the data or
 // code changes so phones pick up the update.
-const VERSION = 'txs-v5';
+const VERSION = 'txs-v6';
 const FILES = [
   './', 'index.html', 'css/app.css', 'js/logic.js', 'js/terms.js', 'js/app.js',
   'data/offenses.js', 'data/statutes.js', 'manifest.webmanifest', 'icon.svg', 'icon-180.png',

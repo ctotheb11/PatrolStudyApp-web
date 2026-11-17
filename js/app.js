@@ -7,6 +7,8 @@
 //   #/o/PC-49.04            entry detail
 //   #/cases                 case law topics      #/cases/t/2   cases in a topic
 //   #/case/terry            case detail
+//   #/bills                 HB/SB topics         #/bills/t/2   bills in a topic
+//   #/bill/89r-hb1871       bill detail
 //   #/saved  #/study  #/levels  #/about  #/terms
 (function () {
   const L = window.StatuteLogic;
@@ -36,7 +38,8 @@
     levels: load('levels', []),
     saved: load('saved', []),
     savedCases: load('savedCases', []),
-    savedView: load('savedView', 'offenses'), // which list the Saved tab shows: 'offenses', 'code', or 'cases'
+    savedBills: load('savedBills', []),
+    savedView: load('savedView', 'offenses'), // which list the Saved tab shows: 'offenses', 'code', 'cases', or 'bills'
   };
 
   const LEVEL_CLASS = {
@@ -139,10 +142,12 @@
     setTitle('Search', false);
     const results = store.search(q, { levels: state.levels });
     const cases = store.searchCases(q);
+    const bills = store.searchBills(q);
     view.innerHTML = filterNote() +
       (results.length ? '<div class="section-label">' + results.length + ' statute result' + (results.length === 1 ? '' : 's') + '</div><div class="list">' + results.slice(0, 80).map(entryRow).join('') + '</div>' : '') +
       (cases.length ? '<div class="section-label">Case law (' + cases.length + ')</div><div class="list">' + cases.slice(0, 30).map(caseRow).join('') + '</div>' : '') +
-      (!results.length && !cases.length ? '<div class="empty">No matches for “' + esc(q) + '”. Try a section number, a word from the offense name, a case name, or a common term such as DWI or POCS.</div>' : '');
+      (bills.length ? '<div class="section-label">HB/SB (' + bills.length + ')</div><div class="list">' + bills.slice(0, 30).map(billRow).join('') + '</div>' : '') +
+      (!results.length && !cases.length && !bills.length ? '<div class="empty">No matches for “' + esc(q) + '”. Try a section number, a word from the offense name, a case name, a bill number such as HB 1871, or a common term such as DWI or POCS.</div>' : '');
   }
 
   // ---- Case law ----------------------------------------------------------------------------------
@@ -198,6 +203,59 @@
       ' Study summary only; not legal advice.</p>';
   }
 
+  // ---- House and Senate bills (HB/SB) ------------------------------------------------------------
+
+  function billRow(b) {
+    return '<a class="row" href="#/bill/' + encodeURIComponent(b.id) + '"><div class="main">' +
+      '<div class="title">' + esc(b.bill) + ' <span class="cite">· effective ' + esc(b.effective) + '</span></div>' +
+      '<div class="sub clamp">' + esc(b.caption.replace(/^Relating to (the )?/, '').replace(/^./, c => c.toUpperCase())) + '</div></div>' + CHEV + '</a>';
+  }
+
+  function renderBillTopics() {
+    setTitle('HB/SB', false);
+    const topics = D.billTopics || [];
+    view.innerHTML =
+      '<p class="muted" style="margin:4px 4px 12px">House (HB) and Senate (SB) bills from the 89th Texas Legislature (2025) that changed the laws officers enforce, each linked to the official bill on Texas Legislature Online. Summaries are simplified study notes, not legal advice; read the bill and follow your agency and prosecutor.</p>' +
+      '<div class="list">' +
+      '<a class="row" href="#/bills/t/all"><div class="main"><div class="title">All bills</div></div><span class="count">' + store.billsIn('').length + '</span>' + CHEV + '</a>' +
+      topics.map((t, i) => '<a class="row" href="#/bills/t/' + i + '"><div class="main"><div class="title">' + esc(t) + '</div></div>' +
+        '<span class="count">' + store.billsIn(t).length + '</span>' + CHEV + '</a>').join('') + '</div>';
+  }
+
+  function renderBillList(ti) {
+    const topic = ti === 'all' ? '' : (D.billTopics || [])[+ti];
+    if (topic === undefined) return renderNotFound();
+    setTitle(topic || 'All bills', true);
+    const list = store.billsIn(topic);
+    // Grouped by session: the Regular Session first, then the called sessions.
+    const sessions = [...new Set(list.map(b => b.sessionName))].sort((x, y) => /Regular/.test(y) - /Regular/.test(x) || x.localeCompare(y));
+    view.innerHTML = sessions.map(name => '<div class="section-label">' + esc(name) + '</div><div class="list">' +
+      list.filter(b => b.sessionName === name).map(billRow).join('') + '</div>').join('');
+  }
+
+  function renderBill(id) {
+    const b = store.billById.get(id);
+    if (!b) return renderNotFound();
+    setTitle(b.bill, true);
+    const related = (b.rel || []).map(r => store.byId.get(r)).filter(Boolean);
+    view.innerHTML =
+      (b.note ? '<div class="warning"><strong>Note</strong>' + esc(b.note) + '</div>' : '') +
+      '<div class="card detail-head"><h2>' + esc(b.bill) + '</h2>' +
+        '<div class="meta">' + esc(b.sessionName) + ' · Author: ' + esc(b.author) + '</div>' +
+        '<div class="meta">Effective ' + esc(b.effective) + '</div>' +
+        '<div class="pill-row">' + b.topics.map(t => '<span class="pill lv-other">' + esc(t) + '</span>').join('') + '</div></div>' +
+      '<div class="card"><h3>What it changed</h3><p>' + esc(b.summary) + '</p></div>' +
+      (b.patrol ? '<div class="card notes"><h3>For patrol</h3><p>' + esc(b.patrol) + '</p></div>' : '') +
+      '<div class="card"><h3>Statutes changed</h3><p>' + esc(b.changes.join(' · ')) + '</p></div>' +
+      '<div class="card"><h3>Official caption</h3><p class="muted">' + esc(b.caption) + '</p></div>' +
+      (related.length ? '<div class="section-label">Related statutes</div><div class="list">' + related.map(entryRow).join('') + '</div>' : '') +
+      '<div class="actions">' +
+        '<button class="secondary-btn" data-action="save-bill" data-id="' + esc(b.id) + '">' + (state.savedBills.includes(b.id) ? '★ Saved' : '☆ Save') + '</button>' +
+        '<a class="secondary-btn" href="' + esc(b.url) + '" target="_blank" rel="noopener">Bill history ↗</a>' +
+        '<a class="secondary-btn" href="' + esc(b.textUrl) + '" target="_blank" rel="noopener">Final bill text ↗</a></div>' +
+      '<p class="muted">Links go to Texas Legislature Online (capitol.texas.gov). The final bill text shows added language underlined and deleted language struck through. Study summary only; not legal advice.</p>';
+  }
+
   function renderDetail(id) {
     const o = store.byId.get(id);
     if (!o) return renderNotFound();
@@ -212,6 +270,7 @@
       '</div>').join('');
     const terms = o.aliases.concat(o.terms || []);
     const cases = store.casesFor(id);
+    const bills = store.billsFor(id);
     view.innerHTML =
       (o.warning ? '<div class="warning"><strong>Warning</strong>' + esc(o.warning) + '</div>' : '') +
       '<div class="card detail-head">' +
@@ -223,6 +282,7 @@
       (o.tiers.length ? '<div class="card"><h3>Punishment</h3>' + tiers + '</div>' : '') +
       (o.notes ? '<div class="card notes"><h3>Notes</h3><p>' + esc(o.notes) + '</p></div>' : '') +
       (cases.length ? '<div class="section-label">Related case law</div><div class="list">' + cases.map(caseRow).join('') + '</div>' : '') +
+      (bills.length ? '<div class="section-label">Changed by (2025 bills)</div><div class="list">' + bills.map(billRow).join('') + '</div>' : '') +
       (terms.length ? '<div class="card"><h3>Also searched as</h3><div class="terms">' + esc(terms.join(' · ')) + '</div></div>' : '') +
       '<div class="card"><details class="statute" id="statute"><summary>Full statute text</summary><div id="statute-body" class="muted">Loading…</div></details></div>' +
       '<div class="actions">' +
@@ -279,12 +339,13 @@
   function renderSaved() {
     setTitle('Saved', false);
     const entries = state.saved.map(id => store.byId.get(id)).filter(Boolean);
-    // Three buttons at the top switch between saved criminal offenses, Criminal Code
-    // (Code of Criminal Procedure) entries, and case law.
+    // Four buttons at the top switch between saved criminal offenses, Criminal Code
+    // (Code of Criminal Procedure) entries, case law, and House and Senate bills.
     const lists = {
       offenses: { label: 'Criminal Offenses', items: entries.filter(o => o.code !== 'CR'), row: entryRow, what: 'offense' },
       code: { label: 'Criminal Code', items: entries.filter(o => o.code === 'CR'), row: entryRow, what: 'Criminal Code entry' },
       cases: { label: 'Case Law', items: state.savedCases.map(id => store.caseById.get(id)).filter(Boolean), row: caseRow, what: 'case' },
+      bills: { label: 'HB/SB', items: state.savedBills.map(id => store.billById.get(id)).filter(Boolean), row: billRow, what: 'bill' },
     };
     const current = lists[state.savedView] ? state.savedView : 'offenses';
     const toggle = '<div class="seg-grid saved-switch">' + Object.entries(lists).map(([k, l]) =>
@@ -302,69 +363,146 @@
       '<p class="muted">Repeat-offender, hate crime, disaster area, and other enhancements are under Penal Code › Title 3. Punishments.</p>';
   }
 
-  // Study mode: flash cards. Read the offense name, guess the level, then reveal.
-  // The two "start here" decks (most common arrests and citations) and the Saved deck go in
-  // order and remember where you left off; the code decks are random.
+  // Study mode: flash cards in four sections that match the main modules: Criminal Offenses,
+  // Criminal Code, Case Law, and HB/SB. Every section has an "All" deck (random cards) and a
+  // Saved deck (the items saved in that section of the Saved tab, newest first). Criminal
+  // Offenses also has the two "start here" decks (most common arrests and citations) and a
+  // random deck for each code. Ordered decks remember where you left off on this device.
   const COMMON = D.common || { arrests: [], citations: [] };
-  const COMMON_DECKS = {
-    arrests: { label: 'Top Arrests', ids: COMMON.arrests.map(a => a.id) },
-    citations: { label: 'Common Citations', ids: COMMON.citations },
-    // The offenses saved on the Saved tab, newest first. Criminal Code entries and case law
-    // have no punishment level to guess, so they are left out.
-    saved: { label: 'Saved', get ids() { return state.saved.filter(id => (store.byId.get(id) || {}).type === 'offense'); } },
-  };
-  const DECK_INTRO = {
-    arrests: 'Start here: the 40 offenses with the most arrests in Texas',
-    citations: 'Start here: the traffic and Class C offenses officers cite most',
-    saved: 'Your saved offenses, newest first',
-  };
   const arrestCount = new Map(COMMON.arrests.map(a => [a.id, a.count]));
-  let studyCode = 'arrests';
+  const pick = list => list[Math.floor(Math.random() * list.length)] || null;
+  const savedEntries = test => () => state.saved.filter(id => { const o = store.byId.get(id); return o && test(o); });
+  const savedHint = what => 'Nothing saved here yet. Tap ☆ Save on any ' + what + ' and it will show up in this deck.';
+  const STUDY = {
+    offenses: {
+      label: 'Criminal Offenses',
+      decks: {
+        '': { label: 'All' },
+        arrests: { label: 'Top Arrests', ids: () => COMMON.arrests.map(a => a.id), list: '#/study/list/arrests',
+          intro: 'Start here: the 40 offenses with the most arrests in Texas' },
+        citations: { label: 'Common Citations', ids: () => COMMON.citations, list: '#/study/list/citations',
+          intro: 'Start here: the traffic and Class C offenses officers cite most' },
+        // Only offenses: Criminal Code entries have their own section.
+        saved: { label: 'Saved', ids: savedEntries(o => o.type === 'offense' && o.code !== 'CR'), list: '#/saved',
+          intro: 'Your saved offenses, newest first', empty: savedHint('offense') },
+      },
+      codeDecks: true,
+      get: id => store.byId.get(id),
+      random: code => store.randomOffense(code, state.levels),
+      card: offenseCard,
+    },
+    code: {
+      label: 'Criminal Code',
+      decks: {
+        '': { label: 'All' },
+        saved: { label: 'Saved', ids: savedEntries(o => o.code === 'CR'), list: '#/saved',
+          intro: 'Your saved Criminal Code entries, newest first', empty: savedHint('Criminal Code entry') },
+      },
+      get: id => store.byId.get(id),
+      random: () => pick(D.offenses.filter(o => o.code === 'CR')),
+      card: codeCard,
+    },
+    cases: {
+      label: 'Case Law',
+      decks: {
+        '': { label: 'All' },
+        saved: { label: 'Saved', ids: () => state.savedCases.filter(id => store.caseById.has(id)), list: '#/saved',
+          intro: 'Your saved cases, newest first', empty: savedHint('case') },
+      },
+      get: id => store.caseById.get(id),
+      random: () => pick(D.cases || []),
+      card: caseCard,
+    },
+    bills: {
+      label: 'HB/SB',
+      decks: {
+        '': { label: 'All' },
+        saved: { label: 'Saved', ids: () => state.savedBills.filter(id => store.billById.has(id)), list: '#/saved',
+          intro: 'Your saved bills, newest first', empty: savedHint('bill') },
+      },
+      get: id => store.billById.get(id),
+      random: () => pick(D.bills || []),
+      card: billCard,
+    },
+  };
+  let studySection = STUDY[load('studySection', 'offenses')] ? load('studySection', 'offenses') : 'offenses';
+  const studyDeck = { offenses: 'arrests', code: '', cases: '', bills: '' }; // chosen deck in each section
   let studyCard = null;
   const studyPos = load('studyPos', {});
+  // Where an ordered deck was left. Criminal Offenses keeps its original keys ("arrests").
+  const posKey = () => (studySection === 'offenses' ? '' : studySection + ':') + studyDeck[studySection];
+
   function renderStudy(reveal) {
     setTitle('Study', false);
-    const deck = COMMON_DECKS[studyCode];
+    const sec = STUDY[studySection];
+    const key = studyDeck[studySection];
+    const deck = sec.decks[key];
+    const ordered = deck && deck.ids; // "All" and the code decks are random
+    const ids = ordered ? deck.ids() : [];
     if (!studyCard) {
-      if (deck) {
-        const ids = deck.ids;
-        const i = ids.length ? (studyPos[studyCode] || 0) % ids.length : 0;
-        studyCard = { o: ids.length ? store.byId.get(ids[i]) : null, pos: i };
+      if (ordered) {
+        const i = ids.length ? (studyPos[posKey()] || 0) % ids.length : 0;
+        studyCard = { item: ids.length ? sec.get(ids[i]) : null, pos: i };
       } else {
-        studyCard = { o: store.randomOffense(studyCode, state.levels) };
+        studyCard = { item: sec.random(key) };
       }
     }
-    const o = studyCard.o;
-    // Deck buttons in two grids: All, the "start here" decks and Saved, then one button per code.
-    const chip = ([k, n]) => '<button class="chip" data-study-code="' + k + '" aria-pressed="' + (k === studyCode) + '">' + esc(n) + '</button>';
-    const deckButtons = '<div class="seg-grid decks">' + [['', 'All']].concat(Object.entries(COMMON_DECKS).map(([k, d]) => [k, d.label])).map(chip).join('') + '</div>' +
-      '<div class="seg-grid">' + D.tree.filter(c => c.code !== 'CR').map(c => [c.code, c.name.replace(/ Code$/, '')]).map(chip).join('') + '</div>';
-    const deckInfo = deck && o
-      ? '<div class="study-intro"><strong>' + DECK_INTRO[studyCode] + '</strong>' +
-        '<span>Card ' + (studyCard.pos + 1) + ' of ' + deck.ids.length + ' · <a href="' + (studyCode === 'saved' ? '#/saved' : '#/study/list/' + studyCode) + '">See the full list</a></span></div>'
+    const item = studyCard.item;
+    const chip = (attr, current) => ([k, n]) => '<button class="chip" ' + attr + '="' + k + '" aria-pressed="' + (k === current) + '">' + esc(n) + '</button>';
+    const sections = '<div class="seg-grid study-sections">' +
+      Object.entries(STUDY).map(([k, x]) => [k, x.label]).map(chip('data-study-section', studySection)).join('') + '</div>';
+    const deckList = Object.entries(sec.decks).map(([k, d]) => [k, d.label]);
+    const deckButtons = '<div class="seg-grid decks' + (deckList.length === 2 ? ' two' : '') + '">' + deckList.map(chip('data-study-code', key)).join('') + '</div>' +
+      (sec.codeDecks ? '<div class="seg-grid">' + D.tree.filter(c => c.code !== 'CR').map(c => [c.code, c.name.replace(/ Code$/, '')]).map(chip('data-study-code', key)).join('') + '</div>' : '');
+    const deckInfo = ordered && item
+      ? '<div class="study-intro"><strong>' + esc(deck.intro) + '</strong>' +
+        '<span>Card ' + (studyCard.pos + 1) + ' of ' + ids.length + ' · <a href="' + deck.list + '">See the full list</a></span></div>'
       : '';
-    const empty = studyCode === 'saved'
-      ? '<div class="empty">No saved offenses yet. Tap ☆ Save on any offense and it will show up here as a flash card.</div>'
-      : '<div class="empty">No offenses match this filter.</div>';
-    const rank = deck && studyCode === 'arrests'
-      ? '<div class="muted">#' + (studyCard.pos + 1) + ' in Texas arrests · ' + arrestCount.get(o.id).toLocaleString() + ' in 2025</div>' : '';
-    view.innerHTML = (deck ? '' : filterNote()) + deckButtons + deckInfo +
-      (o ? '<div class="card flash"><div class="cite">' + esc(store.citation(o)) + '</div><div class="q">' + esc(o.name) + '</div>' + rank +
-        '<div class="muted">What is the punishment level?</div>' +
-        (reveal ? '<div class="answer">' + levelPills(o) + '<p>' + esc(o.summary) + '</p>' +
-          o.tiers.slice(0, 6).map(t => '<div class="tier">' + pill(t.group, t.level) + '<div class="when">' + esc(t.when) + '</div></div>').join('') +
-          '<a href="#/o/' + encodeURIComponent(o.id) + '">Open full entry</a></div>' : '') +
-        '</div><button class="primary-btn" data-action="' + (reveal ? 'study-next' : 'study-reveal') + '">' + (reveal ? 'Next card' : 'Show answer') + '</button>' +
-        (deck ? '<div class="study-nav"><button class="text-btn" data-action="study-prev">‹ Previous card</button>' +
+    const empty = '<div class="empty">' + esc(deck && deck.empty ? deck.empty : studySection === 'offenses' ? 'No offenses match this filter.' : 'Nothing to study here yet.') + '</div>';
+    view.innerHTML = sections + (studySection === 'offenses' && !ordered ? filterNote() : '') + deckButtons + deckInfo +
+      (item ? '<div class="card flash">' + sec.card(item, reveal) + '</div>' +
+        '<button class="primary-btn" data-action="' + (reveal ? 'study-next' : 'study-reveal') + '">' + (reveal ? 'Next card' : 'Show answer') + '</button>' +
+        (ordered ? '<div class="study-nav"><button class="text-btn" data-action="study-prev">‹ Previous card</button>' +
           (reveal ? '' : '<button class="text-btn" data-action="study-next">Skip ›</button>') + '</div>' : '')
         : empty);
   }
 
-  // Moves through a "start here" deck in order and remembers the position on this device.
+  // One flash card for each section: the question, then the answer once revealed.
+  function offenseCard(o, reveal) {
+    const rank = studyDeck.offenses === 'arrests' && arrestCount.has(o.id)
+      ? '<div class="muted">#' + (studyCard.pos + 1) + ' in Texas arrests · ' + arrestCount.get(o.id).toLocaleString() + ' in 2025</div>' : '';
+    return '<div class="cite">' + esc(store.citation(o)) + '</div><div class="q">' + esc(o.name) + '</div>' + rank +
+      '<div class="muted">What is the punishment level?</div>' +
+      (reveal ? '<div class="answer">' + levelPills(o) + '<p>' + esc(o.summary) + '</p>' +
+        o.tiers.slice(0, 6).map(t => '<div class="tier">' + pill(t.group, t.level) + '<div class="when">' + esc(t.when) + '</div></div>').join('') +
+        '<a href="#/o/' + encodeURIComponent(o.id) + '">Open full entry</a></div>' : '');
+  }
+  function codeCard(o, reveal) {
+    return '<div class="cite">' + esc(store.citation(o)) + '</div><div class="q">' + esc(o.name) + '</div>' +
+      '<div class="muted">What does this provision say?</div>' +
+      (reveal ? '<div class="answer"><p>' + esc(o.summary) + '</p>' + (o.notes ? '<h4>Notes</h4><p>' + esc(o.notes) + '</p>' : '') +
+        '<a href="#/o/' + encodeURIComponent(o.id) + '">Open full entry</a></div>' : '');
+  }
+  function caseCard(c, reveal) {
+    return '<div class="cite">' + esc(c.cite) + ' (' + c.year + ') · ' + COURT_NAME[c.court] + '</div><div class="q">' + esc(c.name) + '</div>' +
+      '<div class="muted">What did the court hold?</div>' +
+      (reveal ? '<div class="answer"><h4>Holding</h4><p>' + esc(c.held) + '</p><h4>For patrol</h4><p>' + esc(c.patrol) + '</p>' +
+        '<a href="#/case/' + encodeURIComponent(c.id) + '">Open full case</a></div>' : '');
+  }
+  function billCard(b, reveal) {
+    return '<div class="cite">' + esc(b.sessionName) + '</div><div class="q">' + esc(b.bill) + '</div>' +
+      '<div class="pill-row" style="justify-content:center">' + b.topics.map(t => '<span class="pill lv-other">' + esc(t) + '</span>').join('') + '</div>' +
+      '<div class="muted">What did this bill change?</div>' +
+      (reveal ? '<div class="answer"><p>' + esc(b.summary) + '</p>' + (b.patrol ? '<h4>For patrol</h4><p>' + esc(b.patrol) + '</p>' : '') +
+        '<p class="muted">Effective ' + esc(b.effective) + '</p><a href="#/bill/' + encodeURIComponent(b.id) + '">Open full bill summary</a></div>' : '');
+  }
+
+  // Moves through an ordered deck and remembers the position on this device.
   function stepStudy(delta) {
-    const deck = COMMON_DECKS[studyCode];
-    if (deck && deck.ids.length) {
-      studyPos[studyCode] = ((studyCard ? studyCard.pos : 0) + delta + deck.ids.length) % deck.ids.length;
+    const deck = STUDY[studySection].decks[studyDeck[studySection]];
+    const n = deck && deck.ids ? deck.ids().length : 0;
+    if (n) {
+      studyPos[posKey()] = ((studyCard ? studyCard.pos : 0) + delta + n) % n;
       save('studyPos', studyPos);
     }
     studyCard = null;
@@ -373,10 +511,10 @@
 
   // The full ranked list for a "start here" deck.
   function renderStudyList(key) {
-    const deck = COMMON_DECKS[key];
+    const deck = ['arrests', 'citations'].includes(key) && STUDY.offenses.decks[key];
     if (!deck) return renderNotFound();
     setTitle(deck.label, true);
-    const rows = deck.ids.map((id, i) => {
+    const rows = deck.ids().map((id, i) => {
       const o = store.byId.get(id);
       return '<a class="row" href="#/o/' + encodeURIComponent(id) + '"><span class="rank">' + (i + 1) + '</span><div class="main">' +
         '<div class="title">' + esc(o.name) + '</div>' +
@@ -400,7 +538,8 @@
         '<p>Proofread and verified: ' + verified + ' of ' + D.offenses.length + '.' + (D.release ? '' : ' <strong>This is a development build: entries marked “Not yet proofread” were written by AI from the statute text and have not been checked by a person.</strong>') + '</p></div>' +
       '<div class="card"><h3>Privacy</h3><p>No account, no tracking, and no data leaves your phone. Saved items and settings are stored only on this device.</p></div>' +
       '<div class="card"><h3>Codes included</h3><p>' + D.tree.map(c => esc(c.name)).join(', ') + '.</p></div>' +
-      '<div class="card"><h3>Case law</h3><p>' + (D.cases || []).length + ' decisions of the U.S. Supreme Court and the Texas Court of Criminal Appeals, linked to the Library of Congress, supremecourt.gov, and search.txcourts.gov.</p></div>';
+      '<div class="card"><h3>Case law</h3><p>' + (D.cases || []).length + ' decisions of the U.S. Supreme Court and the Texas Court of Criminal Appeals, linked to the Library of Congress, supremecourt.gov, and search.txcourts.gov.</p></div>' +
+      '<div class="card"><h3>House and Senate bills</h3><p>' + (D.bills || []).length + ' bills from the 89th Texas Legislature (2025) that changed laws officers enforce, linked to Texas Legislature Online (capitol.texas.gov).</p></div>';
   }
 
   function renderAbout() {
@@ -432,11 +571,11 @@
     const parts = hash.slice(2).split('/').map(decodeURIComponent);
     const q = searchInput.value.trim();
     const isCriminalCode = parts[0] === 'code' || (parts[0] === 'c' && parts[1] === 'CR') || (parts[0] === 'o' && /^CCP-/.test(parts[1] || ''));
-    const activeTab = isCriminalCode ? 'code' : parts[0] === 'case' ? 'cases' : ['cases', 'study', 'saved'].includes(parts[0]) ? parts[0] : 'offenses';
+    const activeTab = isCriminalCode ? 'code' : parts[0] === 'case' ? 'cases' : parts[0] === 'bill' ? 'bills' : ['cases', 'bills', 'study', 'saved'].includes(parts[0]) ? parts[0] : 'offenses';
     document.querySelectorAll('.tabbar a').forEach(a => a.classList.toggle('on', a.dataset.tab === activeTab));
     // Footer only on the main page of each module, not on pages opened from them or on search results.
     const isModuleHome = (!parts[0] && !q) || parts[0] === 'code' || (parts[0] === 'c' && parts[1] === 'CR' && parts.length === 2) ||
-      (['cases', 'study', 'saved'].includes(parts[0]) && parts.length === 1);
+      (['cases', 'bills', 'study', 'saved'].includes(parts[0]) && parts.length === 1);
     pageFooter.hidden = !isModuleHome;
     if (q && (parts[0] === '' || parts[0] === 'search')) return renderSearch(q);
     if (parts[0] === '' || parts[0] === undefined) return renderCodes();
@@ -454,6 +593,9 @@
     if (parts[0] === 'cases' && parts.length === 1) return renderCaseTopics();
     if (parts[0] === 'cases' && parts[1] === 't') return renderCaseList(parts[2]);
     if (parts[0] === 'case') return renderCase(parts[1]);
+    if (parts[0] === 'bills' && parts.length === 1) return renderBillTopics();
+    if (parts[0] === 'bills' && parts[1] === 't') return renderBillList(parts[2]);
+    if (parts[0] === 'bill') return renderBill(parts[1]);
     renderNotFound();
   }
 
@@ -512,7 +654,7 @@
   searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') searchInput.blur(); });
 
   view.addEventListener('click', e => {
-    const t = e.target.closest('[data-action], [data-level], [data-cite], [data-study-code], [data-saved-view]');
+    const t = e.target.closest('[data-action], [data-level], [data-cite], [data-study-code], [data-study-section], [data-saved-view]');
     if (!t) return;
     if (t.dataset.action === 'save') {
       const id = t.dataset.id;
@@ -524,6 +666,11 @@
       state.savedCases = state.savedCases.includes(id) ? state.savedCases.filter(x => x !== id) : [id].concat(state.savedCases);
       save('savedCases', state.savedCases);
       t.textContent = state.savedCases.includes(id) ? '★ Saved' : '☆ Save';
+    } else if (t.dataset.action === 'save-bill') {
+      const id = t.dataset.id;
+      state.savedBills = state.savedBills.includes(id) ? state.savedBills.filter(x => x !== id) : [id].concat(state.savedBills);
+      save('savedBills', state.savedBills);
+      t.textContent = state.savedBills.includes(id) ? '★ Saved' : '☆ Save';
     } else if (t.dataset.savedView) {
       state.savedView = t.dataset.savedView;
       save('savedView', state.savedView);
@@ -537,7 +684,9 @@
     } else if (t.dataset.action === 'study-prev') {
       stepStudy(-1);
     } else if (t.dataset.studyCode !== undefined) {
-      studyCode = t.dataset.studyCode; studyCard = null; renderStudy(false);
+      studyDeck[studySection] = t.dataset.studyCode; studyCard = null; renderStudy(false);
+    } else if (t.dataset.studySection) {
+      studySection = t.dataset.studySection; save('studySection', studySection); studyCard = null; renderStudy(false);
     } else if (t.dataset.level) {
       showLevelInfo(t.dataset.level);
     } else if (t.dataset.cite) {

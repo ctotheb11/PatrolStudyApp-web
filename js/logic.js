@@ -127,7 +127,43 @@
       return cases.filter(c => (c.rel || []).includes(id));
     }
 
-    return { data, byId, search, chapterEntries, countIn, topLevel, citation, levelInfo, randomOffense, matchesLevels, caseById, searchCases, casesIn, casesFor };
+    // ---- House and Senate bills ----
+    const bills = data.bills || [];
+    const billById = new Map(bills.map(b => [b.id, b]));
+    const billIndex = bills.map(b => ({
+      b,
+      number: norm(b.bill).replace(' ', ''), // "hb1871"
+      all: norm([b.bill, b.caption, b.topics.join(' '), b.changes.join(' '), b.summary, b.patrol].join(' ')),
+    }));
+
+    // Bills matching the query: a bill number ("HB 1871", "hb1871") first, then every word.
+    function searchBills(query) {
+      const q = norm(query);
+      if (!q) return [];
+      const compact = q.replace(/\s+/g, '');
+      const words = q.split(' ').filter(Boolean);
+      return billIndex
+        .map(x => ({ b: x.b, score: (x.number === compact ? 100 : 0) + (words.every(w => hasWords(x.all, w)) ? 10 : 0) }))
+        .filter(x => x.score)
+        .sort((a, b) => b.score - a.score || billOrder(a.b, b.b))
+        .map(x => x.b);
+    }
+
+    // Bills in a topic ('' for all): House bills, then Senate bills, then resolutions, by number.
+    function billsIn(topic) {
+      return bills.filter(b => !topic || b.topics.includes(topic)).sort(billOrder);
+    }
+    function billOrder(a, b) {
+      const kind = x => ['HB', 'SB', 'HJR', 'SJR'].indexOf(x.bill.split(' ')[0]);
+      return kind(a) - kind(b) || +a.bill.split(' ')[1] - +b.bill.split(' ')[1];
+    }
+
+    // Bills that list an offense or provision as related.
+    function billsFor(id) {
+      return bills.filter(b => (b.rel || []).includes(id)).sort(billOrder);
+    }
+
+    return { data, byId, search, chapterEntries, countIn, topLevel, citation, levelInfo, randomOffense, matchesLevels, caseById, searchCases, casesIn, casesFor, billById, searchBills, billsIn, billsFor };
   }
 
   // True if `phrase` appears in `text` starting at a word boundary ("meth" matches

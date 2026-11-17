@@ -232,10 +232,20 @@ main { display: flex; flex-direction: column; }
 .flash .answer { text-align: left; margin-top: 16px; }
 .seg { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 4px 12px; }
 .seg-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 0 4px 6px; }
-.seg-grid.saved-switch { margin-bottom: 12px; }
+.seg-grid.saved-switch { grid-template-columns: repeat(4, 1fr); margin-bottom: 12px; }
+.seg-grid.saved-switch .chip { font-size: 13px; }
+/* Study: the four main sections on a dark bar, then the decks of the chosen section. */
+.seg-grid.study-sections { grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 4px; margin-bottom: 10px; border-radius: 14px; background: var(--bar); }
+.seg-grid.study-sections .chip { min-height: 46px; font-size: 13px; background: transparent; color: var(--bar-text); border-color: transparent; }
+.seg-grid.study-sections .chip[aria-pressed="true"] { background: var(--surface); color: var(--text); }
 .seg-grid.saved-switch .chip { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 52px; }
 .seg-grid.saved-switch .n { font-size: 12px; font-weight: 500; opacity: .8; }
 .seg-grid.decks { grid-template-columns: repeat(4, 1fr); margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.seg-grid.decks.two { grid-template-columns: repeat(2, 1fr); padding-bottom: 0; border-bottom: 0; }
+.flash .answer h4 { margin: 12px 0 2px; font-size: 14px; }
+.flash .answer h4 + p { margin-top: 0; }
+/* Bill rows: the caption is long, so show two lines of it. */
+.row .sub.clamp { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .seg-grid + .seg-grid { margin-bottom: 14px; }
 .seg-grid .chip { padding: 4px 6px; min-height: 44px; border-radius: 12px; line-height: 1.15; font-size: 14px; text-align: center; white-space: normal; }
 .study-intro { margin: 0 4px 10px; font-size: 14px; color: var(--muted); display: flex; flex-direction: column; gap: 2px; }
