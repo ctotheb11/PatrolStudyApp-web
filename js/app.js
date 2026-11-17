@@ -303,12 +303,20 @@
   }
 
   // Study mode: flash cards. Read the offense name, guess the level, then reveal.
-  // The two "start here" decks (most common arrests and citations) go in order and remember
-  // where you left off; the code decks are random.
+  // The two "start here" decks (most common arrests and citations) and the Saved deck go in
+  // order and remember where you left off; the code decks are random.
   const COMMON = D.common || { arrests: [], citations: [] };
   const COMMON_DECKS = {
     arrests: { label: 'Top Arrests', ids: COMMON.arrests.map(a => a.id) },
     citations: { label: 'Common Citations', ids: COMMON.citations },
+    // The offenses saved on the Saved tab, newest first. Criminal Code entries and case law
+    // have no punishment level to guess, so they are left out.
+    saved: { label: 'Saved', get ids() { return state.saved.filter(id => (store.byId.get(id) || {}).type === 'offense'); } },
+  };
+  const DECK_INTRO = {
+    arrests: 'Start here: the 40 offenses with the most arrests in Texas',
+    citations: 'Start here: the traffic and Class C offenses officers cite most',
+    saved: 'Your saved offenses, newest first',
   };
   const arrestCount = new Map(COMMON.arrests.map(a => [a.id, a.count]));
   let studyCode = 'arrests';
@@ -319,21 +327,25 @@
     const deck = COMMON_DECKS[studyCode];
     if (!studyCard) {
       if (deck) {
-        const i = (studyPos[studyCode] || 0) % deck.ids.length;
-        studyCard = { o: store.byId.get(deck.ids[i]), pos: i };
+        const ids = deck.ids;
+        const i = ids.length ? (studyPos[studyCode] || 0) % ids.length : 0;
+        studyCard = { o: ids.length ? store.byId.get(ids[i]) : null, pos: i };
       } else {
         studyCard = { o: store.randomOffense(studyCode, state.levels) };
       }
     }
     const o = studyCard.o;
-    // Deck buttons in two grids: All and the "start here" decks, then one button per code.
+    // Deck buttons in two grids: All, the "start here" decks and Saved, then one button per code.
     const chip = ([k, n]) => '<button class="chip" data-study-code="' + k + '" aria-pressed="' + (k === studyCode) + '">' + esc(n) + '</button>';
     const deckButtons = '<div class="seg-grid decks">' + [['', 'All']].concat(Object.entries(COMMON_DECKS).map(([k, d]) => [k, d.label])).map(chip).join('') + '</div>' +
       '<div class="seg-grid">' + D.tree.filter(c => c.code !== 'CR').map(c => [c.code, c.name.replace(/ Code$/, '')]).map(chip).join('') + '</div>';
-    const deckInfo = deck
-      ? '<div class="study-intro"><strong>' + (studyCode === 'arrests' ? 'Start here: the 40 offenses with the most arrests in Texas' : 'Start here: the traffic and Class C offenses officers cite most') + '</strong>' +
-        '<span>Card ' + (studyCard.pos + 1) + ' of ' + deck.ids.length + ' · <a href="#/study/list/' + studyCode + '">See the full list</a></span></div>'
+    const deckInfo = deck && o
+      ? '<div class="study-intro"><strong>' + DECK_INTRO[studyCode] + '</strong>' +
+        '<span>Card ' + (studyCard.pos + 1) + ' of ' + deck.ids.length + ' · <a href="' + (studyCode === 'saved' ? '#/saved' : '#/study/list/' + studyCode) + '">See the full list</a></span></div>'
       : '';
+    const empty = studyCode === 'saved'
+      ? '<div class="empty">No saved offenses yet. Tap ☆ Save on any offense and it will show up here as a flash card.</div>'
+      : '<div class="empty">No offenses match this filter.</div>';
     const rank = deck && studyCode === 'arrests'
       ? '<div class="muted">#' + (studyCard.pos + 1) + ' in Texas arrests · ' + arrestCount.get(o.id).toLocaleString() + ' in 2025</div>' : '';
     view.innerHTML = (deck ? '' : filterNote()) + deckButtons + deckInfo +
@@ -345,13 +357,13 @@
         '</div><button class="primary-btn" data-action="' + (reveal ? 'study-next' : 'study-reveal') + '">' + (reveal ? 'Next card' : 'Show answer') + '</button>' +
         (deck ? '<div class="study-nav"><button class="text-btn" data-action="study-prev">‹ Previous card</button>' +
           (reveal ? '' : '<button class="text-btn" data-action="study-next">Skip ›</button>') + '</div>' : '')
-        : '<div class="empty">No offenses match this filter.</div>');
+        : empty);
   }
 
   // Moves through a "start here" deck in order and remembers the position on this device.
   function stepStudy(delta) {
     const deck = COMMON_DECKS[studyCode];
-    if (deck) {
+    if (deck && deck.ids.length) {
       studyPos[studyCode] = ((studyCard ? studyCard.pos : 0) + delta + deck.ids.length) % deck.ids.length;
       save('studyPos', studyPos);
     }

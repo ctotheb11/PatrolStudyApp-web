@@ -235,7 +235,7 @@ main { display: flex; flex-direction: column; }
 .seg-grid.saved-switch { margin-bottom: 12px; }
 .seg-grid.saved-switch .chip { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 52px; }
 .seg-grid.saved-switch .n { font-size: 12px; font-weight: 500; opacity: .8; }
-.seg-grid.decks { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.seg-grid.decks { grid-template-columns: repeat(4, 1fr); margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
 .seg-grid + .seg-grid { margin-bottom: 14px; }
 .seg-grid .chip { padding: 4px 6px; min-height: 44px; border-radius: 12px; line-height: 1.15; font-size: 14px; text-align: center; white-space: normal; }
 .study-intro { margin: 0 4px 10px; font-size: 14px; color: var(--muted); display: flex; flex-direction: column; gap: 2px; }
